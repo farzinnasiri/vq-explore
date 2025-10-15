@@ -7,7 +7,7 @@ Autoregressive (AR) models, which predict the next element in a sequence based o
 At its core, an AR model factorizes the joint probability distribution of a sequence $x = (x_1, x_2, \ldots, x_N)$ using the chain rule of probability:
 
 $$
-p(x) = \prod_{i=1}^{N} p(x_i | x_{<i})
+p(x) = \prod_{i=1}^{N} p(x_i \mid x_{\lt i})
 $$
 
 This "next-token prediction" approach, which powers models like GPT (Radford et al., 2019), is fundamentally challenged when the data is not a simple 1D sequence.
