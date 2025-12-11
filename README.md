@@ -160,7 +160,8 @@
 | Run | IS | rFID | sFID | LPIPS | PSNR | SSIM | Notes |
 |---|---:|---:|---:|---:|---:|---:|---|
 | LlamaGen VQ-16 (Paper, 256x256) | — | 2.19 | — | — | 20.79 | 0.675 | Usage 97.0% |
-| LlamaGen VQ-8 (Dec 9, reconstruction on ImageNet val) | 59.02 | 0.5905 | 2.5488 | 0.1232 | 24.455 | 0.735212 | Precision 0.99928; Recall 0.99988; evaluated vs ImageNet val ground-truth NPZ |
+| LlamaGen VQ-16 (Dec 10, reconstruction on ImageNet val) | 52.70 | 2.19 | 5.00 | 0.2281 | 20.79 | 0.5580 | Precision 0.97766; Recall 0.9951;  |
+| LlamaGen VQ-8 (Dec 9, reconstruction on ImageNet val) | 59.02 | 0.5905 | 2.5488 | 0.1232 | 24.455 | 0.735212 | Precision 0.99928; Recall 0.99988;|
 | LlamaGen VQ-8 (Paper, 256x256) | — | 0.59 | — | — | 24.45 | 0.813 | Usage 97.6% |
 
 #### Sample Generations (LlamaGen VQ-8)
