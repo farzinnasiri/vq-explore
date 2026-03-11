@@ -688,8 +688,10 @@ def compute_lpips_dataframe(variants: pd.DataFrame, *, batch_size: int) -> pd.Da
     batch_edit_full = []
     batch_clean_patch = []
     batch_edit_patch = []
+    batch_patch_shape = None
 
     def flush():
+        nonlocal batch_patch_shape
         if not batch_meta:
             return
 
@@ -718,6 +720,7 @@ def compute_lpips_dataframe(variants: pd.DataFrame, *, batch_size: int) -> pd.Da
         batch_edit_full.clear()
         batch_clean_patch.clear()
         batch_edit_patch.clear()
+        batch_patch_shape = None
 
     payloads = group_payloads_from_variants(variants)
     for payload in tqdm(payloads, total=len(payloads), desc="LPIPS"):
@@ -733,11 +736,21 @@ def compute_lpips_dataframe(variants: pd.DataFrame, *, batch_size: int) -> pd.Da
                 continue
 
             x0, y0, x1, y1 = bbox
+            clean_patch = clean[y0:y1, x0:x1, :]
+            edit_patch = edit[y0:y1, x0:x1, :]
+            patch_shape = clean_patch.shape
+
+            if batch_patch_shape is not None and patch_shape != batch_patch_shape:
+                flush()
+
+            if batch_patch_shape is None:
+                batch_patch_shape = patch_shape
+
             batch_meta.append(row)
             batch_clean_full.append(clean)
             batch_edit_full.append(edit)
-            batch_clean_patch.append(clean[y0:y1, x0:x1, :])
-            batch_edit_patch.append(edit[y0:y1, x0:x1, :])
+            batch_clean_patch.append(clean_patch)
+            batch_edit_patch.append(edit_patch)
 
             if len(batch_meta) >= batch_size:
                 flush()
