@@ -45,7 +45,7 @@ This chapter gives the technical context for the experiments in this thesis. The
 Autoregressive generation factorizes a sequence probability as:
 
 $$
-p(x) = \prod_i p(x_i \mid x_{<i})
+p(x) = \prod_i p(x_i | x_{<i})
 $$
 
 For text, this factorization aligns naturally with the representation used by the model. A sentence is already a sequence of discrete symbols after tokenization, and next-token prediction can be trained directly on that sequence. Images have a less convenient structure. A color image is usually represented as a dense tensor of continuous pixel intensities with shape `height x width x channels`. The signal is two-dimensional, local neighborhoods are important, and the number of raw values is large: a `256 x 256` RGB image contains `196,608` scalar pixel values before any modeling context is considered.
@@ -68,7 +68,7 @@ The Vector Quantised Variational Autoencoder (VQ-VAE) introduced a discrete late
 In simplified form:
 
 $$
-z_e = \operatorname{Encoder}(x)
+z_e = Encoder(x)
 $$
 
 $$
@@ -80,7 +80,7 @@ z_q = e_k
 $$
 
 $$
-\hat{x} = \operatorname{Decoder}(z_q)
+\hat{x} = Decoder(z_q)
 $$
 
 Here, `e_j` is a codebook vector and `k` is the discrete token ID.
@@ -100,10 +100,10 @@ The decoder receives `z_q`, not the original continuous encoder output. This for
 Training a VQ model requires handling the non-differentiable nearest-neighbor assignment. VQ-VAE uses a straight-through estimator so gradients from the decoder can update the encoder even though the forward pass uses discrete code assignments. The loss also includes a codebook term and a commitment term, encouraging codebook vectors to move toward encoder outputs and encouraging encoder outputs not to fluctuate arbitrarily around the codebook. Following the VQ-VAE formulation, the usual objective can be summarized as:
 
 $$
-\mathcal{L}
-= \mathcal{L}_{\mathrm{rec}}
-+ \lVert \operatorname{sg}[z_e(x)] - e \rVert_2^2
-+ \beta \lVert z_e(x) - \operatorname{sg}[e] \rVert_2^2
+L
+= L_{rec}
++ \lVert sg[z_e(x)] - e \rVert_2^2
++ \beta \lVert z_e(x) - sg[e] \rVert_2^2
 $$
 
 where `sg[.]` denotes stop-gradient and `beta` controls the commitment penalty. The exact reconstruction loss depends on the model family. Early VQ-VAE work used reconstruction objectives suitable for representation learning and likelihood modeling. VQGAN later added perceptual and adversarial components to improve image sharpness.
@@ -440,11 +440,11 @@ Measure how stable each tokenizer is when additive Gaussian noise is applied to 
 Perturbation:
 
 $$
-x' = \operatorname{clip}(x + \sigma \epsilon)
+x' = clip(x + \sigma \epsilon)
 $$
 
 $$
-\epsilon \sim \mathcal{N}(0, I)
+\epsilon \sim N(0, I)
 $$
 
 The robustness exporters use the model input space `[-1, 1]`.
