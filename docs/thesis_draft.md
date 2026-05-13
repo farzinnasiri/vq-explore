@@ -38,7 +38,7 @@ TODO: write after final results.
 
 ## 2. Background
 
-This chapter gives the technical context for the experiments in this thesis. The focus is deliberately narrow: it covers the line of work in which images are first compressed into discrete visual tokens and then modeled as sequences. This is the setting shared by VQ-VAE (van den Oord et al., 2017), VQGAN/Taming Transformers (Esser et al., 2021), DALL-E-style discrete autoencoders (Ramesh et al., 2021), and LlamaGen (Sun et al., 2024). Diffusion models are not reviewed in detail because the experiments do not compare generative sampling methods; they compare the behavior of the tokenizers that make autoregressive image generation possible.
+Autoregressive visual generation rests on a family of methods that compress images into discrete visual tokens and then model those tokens as sequences. This review covers that line of work: VQ-VAE (van den Oord et al., 2017), VQGAN/Taming Transformers (Esser et al., 2021), DALL-E-style discrete autoencoders (Ramesh et al., 2021), and LlamaGen (Sun et al., 2024). Diffusion models are not reviewed in detail because the experiments do not compare generative sampling methods; they compare the behavior of the tokenizers that make autoregressive image generation possible. Several figure placeholders in this chapter are pedagogical redraws inspired by Miranda (2021), adapted to match the notation and scope of this thesis.
 
 ### 2.1 Autoregressive Models: From Text to Images
 
@@ -52,6 +52,18 @@ For text, this factorization aligns naturally with the representation used by th
 
 An autoregressive image model must therefore make two design choices before it can use a standard sequence model. First, it must choose a sequence order for a two-dimensional object, usually by flattening a spatial grid. Second, it must choose the unit of prediction. Pixel-level autoregressive models predict raw or discretized pixel values, but their sequences are long and the resulting model must learn both low-level image statistics and long-range structure. Modern autoregressive image generators often avoid this by introducing a learned image tokenizer. The tokenizer compresses an image into a shorter grid of discrete codes; the transformer then models this grid as a sequence.
 
+The scaling constraint is central. If a transformer receives a sequence of length `T`, full self-attention has `O(T^2)` time and memory cost. For image-like inputs, `T` can be very large if we flatten at pixel level. A concrete order-of-magnitude comparison is:
+
+```text
+pixel-level sequence for 224x224 RGB: T = 224 * 224 * 3 = 150,528
+token-level sequence for 256x256 with f=16: T = 16 * 16 = 256
+```
+
+This gap motivates the two-stage design used in VQ-based image generation: first learn a compact discrete representation, then model token dependencies autoregressively.
+
+> **Figure placeholder 2.1a: Pixel Flattening vs Token Sequence Length.**
+> Place this immediately after the complexity paragraph. Left panel: a `224 x 224 x 3` image tensor expanded into a long 1D sequence; annotate `T = 150,528`. Right panel: a `16 x 16` token grid flattened to length `256`; annotate `T = 256`. Add a small note below: `self-attention cost grows quadratically in T`.
+
 In this two-stage design, the first stage is an autoencoder-like tokenizer and the second stage is an autoregressive prior. The tokenizer determines the visual vocabulary and the spatial resolution of the sequence. For example, a tokenizer with downsampling factor `f = 16` maps a `256 x 256` image to a `16 x 16` grid, which contains only `256` image tokens. The autoregressive model then predicts a sequence of 256 discrete token IDs rather than hundreds of thousands of pixel-channel values.
 
 This compression is not merely an engineering convenience. It changes the learning problem. The transformer no longer models pixels directly; it models the distribution of learned visual parts. The quality and behavior of the tokenizer therefore constrain the whole generative system. If the tokenizer loses information, uses its codebook unevenly, or reacts unstably to small input changes, those properties become part of the data distribution seen by the autoregressive model.
@@ -59,7 +71,10 @@ This compression is not merely an engineering convenience. It changes the learni
 > **Figure placeholder 2.1: Two-stage autoregressive image generation.**
 > Add a diagram showing: input image -> encoder -> token grid -> flattened token sequence -> autoregressive transformer -> generated token sequence -> decoder -> output image. The figure should highlight the reduction from `256 x 256 x 3` pixels to a `16 x 16` token grid for the `f = 16` setting used in this project.
 
-This framing motivates the central choice in the thesis: rather than evaluating only final generated images, the experiments study the tokenizer itself. Reconstruction metrics test whether the autoencoder preserves images on average, but they do not fully explain how the representation is organized. The following sections review the tokenizer mechanisms that matter for the later research questions.
+> **Figure placeholder 2.1b: Local Features vs Long-Range Dependencies.**
+> Place this at the end of Section 2.1. Three blocks: (1) CNN feature hierarchy (low-level edges/colors -> mid-level motifs -> high-level parts), (2) discrete tokenization/codebook stage, (3) transformer modeling long-range relationships among tokens. Caption idea: local composition and global dependency modeling are separated but complementary.
+
+This framing motivates the central choice in the thesis: rather than evaluating only final generated images, the experiments study the tokenizer itself. Reconstruction metrics test whether the autoencoder preserves images on average, but they do not fully explain how the representation is organized.
 
 ### 2.2 Image Tokens and Vector Quantization
 
@@ -97,6 +112,11 @@ where `sg[.]` denotes stop-gradient and `beta` controls the commitment penalty. 
 
 The token grid can be interpreted in two equivalent ways. For the autoencoder, it is an index map telling the decoder which codebook vector to use at each spatial location. For the autoregressive prior, it is a sequence over a vocabulary of size `K`. This dual role is why codebook behavior matters: a code that is useful for reconstruction is also a symbol the transformer may need to predict.
 
+From a signal-processing viewpoint, vector quantization can be interpreted as mapping many continuous latent vectors to a finite set of representative centroids. In intuitive terms, one learns a dictionary of visual prototypes (the codebook) and replaces each latent vector by the index of its nearest prototype. This gives the model a discrete alphabet without requiring pixel-level sequence modeling.
+
+> **Figure placeholder 2.2a: VQ as Clustering and Codebook Construction.**
+> Place this after the paragraph above. Three panels: (1) latent vectors as points in 2D/3D, (2) partition into clusters with one centroid per cluster, (3) lookup-table style codebook with entries `z_0, z_1, ..., z_{K-1}`. Caption should state that quantization maps each latent to the nearest centroid and emits a discrete index.
+
 Two practical properties are especially important for this thesis.
 
 First, the nominal vocabulary and the empirical vocabulary can differ. A model may have `K = 16,384` entries, but only a subset may appear on a dataset. This can happen because some codes are unused after training or because the evaluated data occupies only part of the learned visual space. The distinction between nominal and active codebook size is central to RQ1 and RQ5.
@@ -106,6 +126,9 @@ Second, the quantization boundary can create discontinuities. A small image pert
 > **Figure placeholder 2.2: Vector quantization in latent space.**
 > Add a schematic with continuous encoder vectors as points, codebook entries as centroids, nearest-neighbor regions as Voronoi cells, and a highlighted point crossing a boundary after a small perturbation. The caption should connect this boundary crossing to token flips in RQ2 and RQ3.
 
+> **Figure placeholder 2.2b: From Encoded Feature Map to Discrete Token Sequence.**
+> Place this at the end of Section 2.2. Show: image `x` -> encoder output `z_hat` (continuous grid) -> quantized grid `z_q` (indices into codebook) -> flattened token sequence `s_0, s_1, ..., s_n`. Caption should emphasize that the transformer is trained on codebook indices, not raw pixels.
+
 ### 2.3 VQGAN and Taming Transformers
 
 VQGAN extends vector-quantized autoencoding with perceptual and adversarial losses (Esser et al., 2021). The goal is to learn a codebook of perceptually meaningful visual constituents and reconstruct sharper images than pixel-loss-only autoencoders. Taming Transformers then models the resulting discrete image tokens with transformers for high-resolution image synthesis.
@@ -114,25 +137,22 @@ The main limitation of a pixel-loss autoencoder is that pixel fidelity and perce
 
 Architecturally, the VQGAN tokenizer used in this work follows the standard first-stage design from Taming Transformers. An image is passed through a convolutional encoder, projected into the codebook embedding space, quantized by nearest-neighbor lookup, projected back into the decoder latent space, and reconstructed by a convolutional decoder. This produces a sequence of transformations from image space to continuous latent space, from continuous latent space to discrete codebook indices, and finally back to image space.
 
+In practical implementations, this stage is trained with a reconstruction objective plus perceptual and adversarial terms. The intuition is that pixel-level matching alone can underweight perceptual realism, while adversarial and perceptual losses encourage sharper and more semantically consistent reconstructions.
+
+> **Figure placeholder 2.3a: Why Add Adversarial Training to the Tokenizer.**
+> Place this before the tokenizer configuration bullet list. Diagram: generator pathway reconstructing `x_hat` from `x`, discriminator scoring realism, and a perceptual-feature branch comparing `x` and `x_hat`. Caption should explain that the first stage jointly optimizes reconstruction fidelity and perceptual realism.
+
 This separation between encoding, quantization, and decoding is important experimentally because it makes it possible to intervene at different points in the tokenizer. Perturbations applied before encoding test the stability of the encoder and quantizer, while perturbations applied directly to token IDs test the spatial behavior of the decoder.
 
-The VQGAN tokenizer used in this thesis is the ImageNet `f = 16`, `16,384`-code first-stage model from Taming Transformers. Its main configuration is:
-
-- input resolution: `256`
-- channels: `3`
-- latent channels: `256`
-- embedding dimension: `256`
-- number of codebook entries: `16,384`
-- channel multipliers: `[1, 1, 2, 2, 4]`
-- attention at resolution `16`
-- loss family: perceptual reconstruction loss with adversarial training
-
-The downsampling factor `f = 16` means that a `256 x 256` image is represented by a `16 x 16` token grid. Each image is therefore reduced to 256 codebook indices. In the original Taming Transformers model table, the ImageNet `f = 16`, `16,384` first-stage model is reported with reconstruction FID values for train and validation reconstructions, which is why it is a natural baseline for this thesis.
+The concrete configuration used in this thesis is specified in Chapter 3. Conceptually, the VQGAN baseline represents the older perceptual-adversarial tokenizer paradigm: a first-stage model optimized to reconstruct natural images sharply enough that the resulting discrete representation becomes useful for transformer-based generation.
 
 One important methodological detail is that the nominal VQGAN codebook can be much larger than the empirically active set. This matters because a token replacement experiment should not silently replace a valid token with a dead code that the model rarely or never uses in the evaluated setting. For VQGAN, the decoder-locality experiments therefore define nearest, farthest, and orthogonal replacements over the observed active subset rather than over the full nominal vocabulary.
 
 > **Figure placeholder 2.3: VQGAN first-stage model.**
 > Add an architecture diagram for the VQGAN first-stage path: encoder, projection into codebook space, vector quantization, projection into decoder space, and decoder. Annotate the project settings: `256 x 256` input, `16 x 16` token grid, `K = 16,384`, `embed_dim = 256`.
+
+> **Figure placeholder 2.3b: Two-Stage Training Schedule.**
+> Place this at the end of Section 2.3. Panel A: train tokenizer (encoder/quantizer/decoder, plus discriminator). Panel B: freeze tokenizer, encode dataset into token sequences, train autoregressive transformer with next-token prediction on indices.
 
 The literature usually evaluates this first stage by reconstruction quality, especially rFID, LPIPS, or related perceptual metrics. Those metrics are necessary but incomplete for this thesis. A tokenizer can achieve strong average reconstruction while still having representational properties that are important for downstream autoregressive modeling: concentrated code usage, unstable token assignments, or decoder changes outside an edited token patch. The VQGAN baseline is therefore used both as a reconstruction model and as a system whose internal discrete representation can be probed.
 
@@ -142,20 +162,13 @@ LlamaGen revisits autoregressive image generation using Llama-style next-token p
 
 The LlamaGen paper asks whether the next-token prediction paradigm used by large language models can scale to image generation when images are represented as discrete tokens. Its system keeps the broad two-stage structure: an image tokenizer maps images to token grids, and a Llama-style autoregressive model predicts those tokens (Sun et al., 2024). The released tokenizers include downsampling ratios `16` and `8`, corresponding to `16 x 16` and `32 x 32` token grids for `256 x 256` images. In the class-conditional ImageNet setting, the reported rFID values include `2.19` for the `VQ-16` tokenizer at `16 x 16` tokens and `0.59` for the `VQ-8` tokenizer at `32 x 32` tokens.
 
-The LlamaGen tokenizer is structurally similar to the VQGAN first stage but uses a smaller codebook embedding dimension by default. The tokenizer configuration used in this work has the following main properties:
-
-- codebook size: `16,384`
-- codebook embedding dimension: `8`
-- L2-normalized codebook: enabled
-- commitment loss beta: `0.25`
-- encoder and decoder channel multipliers for `VQ-16`: `[1, 1, 2, 2, 4]`
-- encoder and decoder channel multipliers for `VQ-8`: `[1, 2, 2, 4]`
+The LlamaGen tokenizer is structurally similar to the VQGAN first stage but belongs to a later design regime in which stronger reconstruction performance and denser codebook usage are treated as prerequisites for scalable next-token image modeling. The concrete hyperparameters used in this thesis are specified in Chapter 3.
 
 Conceptually, it supports the same experimental decomposition as the VQGAN first stage: images can be encoded into quantized latent representations, quantized latents can be decoded back to images, and token IDs can be decoded after direct token-space intervention.
 
-The vector quantizer computes nearest-neighbor assignments in codebook space. When L2 normalization is enabled, both encoder outputs and codebook embeddings are normalized before distance computation. This makes code identity depend on angular similarity as well as Euclidean distance after normalization, which is relevant when interpreting nearest-neighbor token substitutions.
+The vector quantizer computes nearest-neighbor assignments in codebook space. When L2 normalization is enabled, both encoder outputs and codebook embeddings are normalized before distance computation. This changes the geometry of codebook interventions. On the unit sphere, Euclidean distance and cosine similarity are tightly linked: the farthest code under Euclidean distance is the one with the most negative cosine similarity, whereas an orthogonal intervention targets cosine similarity near zero. These are therefore distinct operations and should not be conflated.
 
-For this thesis, the main LlamaGen comparison uses `VQ-16`. This makes the spatial token grid directly comparable to the VQGAN `f = 16` baseline: both map a `256 x 256` image to `16 x 16` tokens with a nominal vocabulary of 16,384 codes. The two tokenizers differ, however, in codebook dimensionality, training recipe, and empirical code usage. Those differences are useful rather than incidental. They allow the experiments to separate properties that are common to discrete image tokenizers from properties that depend on a particular tokenizer design.
+For this thesis, the main LlamaGen comparison uses `VQ-16`. This makes the spatial token grid directly comparable to the VQGAN `f = 16` baseline: both map a `256 x 256` image to `16 x 16` tokens with the same nominal vocabulary size. The two tokenizers differ, however, in codebook dimensionality, normalization, training recipe, and empirical code usage. Those differences are useful rather than incidental. They allow the experiments to separate properties that are common to discrete image tokenizers from properties that depend on a particular tokenizer design.
 
 Unlike the VQGAN setup used here, LlamaGen shows near-full or full codebook usage in the evaluated setting. Therefore, codebook-relation maps for LlamaGen are computed over the full codebook. This difference is carried into RQ4: a nearest-neighbor replacement in VQGAN is nearest among observed alive codes, while the corresponding LlamaGen replacement is nearest in the full normalized codebook.
 
@@ -175,157 +188,225 @@ However, reconstruction quality alone does not determine whether a tokenizer is 
 
 These behaviors are not secondary implementation details. They affect the sequence model trained on top of the tokenizer. Codebook concentration changes the effective vocabulary and token frequency distribution. Non-local encoder responses can make token sequences sensitive to small image changes. Non-local decoder responses can make local token prediction errors visually global. Distribution-shift changes can expose whether a tokenizer has learned a general visual vocabulary or a representation specialized to the training distribution.
 
+For the second-stage autoregressive model, training follows the same conditional factorization used in language models, but over visual token indices. A simple plain-text form is:
+
+```text
+given sequence s = (s_0, s_1, ..., s_n):
+model learns p(s_i | s_0, ..., s_{i-1}) for each i
+overall sequence likelihood: p(s) = product over i of p(s_i | s_<i)
+```
+
+This formulation is useful for interpretation: robustness or locality failures in the tokenizer modify the token sequence distribution seen by the transformer, which then affects both likelihood and sampling behavior.
+
 The experiments in this thesis are designed around this broader view of tokenizer quality. RQ1 establishes reconstruction and codebook usage. RQ2 measures global stability under additive noise. RQ3 tests encoder locality by perturbing local image patches and measuring token changes. RQ4 tests decoder locality by editing local token patches and measuring image-space changes. RQ5 asks whether reconstruction and codebook behavior remain stable under distribution shift.
 
 > **Figure placeholder 2.5: Taxonomy of tokenizer probes.**
 > Add a four-panel explanatory figure: reconstruction baseline, global noise, local image-space perturbation through the encoder, and local token-space perturbation through the decoder. Each panel should show the measured object: image metrics, token flips, leakage outside the patch, or codebook usage.
 
+> **Figure placeholder 2.5a: Next-Token Prediction Over Visual Indices.**
+> Place this after Figure placeholder 2.5. Show a token prefix `s_0 ... s_4` followed by a masked/unknown `s_5`, and a probability distribution over candidate next indices. Caption should connect visual autoregression to standard language-model next-token training.
+
 This thesis therefore treats the tokenizer as a measurable object rather than a black-box preprocessing step. The goal is not to claim that one tokenizer is universally better, but to identify which properties are visible only when the discrete representation is probed directly.
+
+The next chapter turns this conceptual taxonomy into a concrete specification by fixing the model instances, datasets, and measurement definitions used in the experiments.
 
 ## 3. Datasets, Models, and Metrics
 
-This chapter defines the shared experimental material used across the research-question chapters. Each RQ chapter contains its own specific procedure, measured quantities, results placeholder, and discussion placeholder.
+The following sections fix the model instances, datasets, and measurement definitions used across all research-question chapters. Each RQ chapter then contains its own specific procedure and results.
 
 ### 3.1 Models Under Study
 
-#### 3.1.1 VQGAN
+This thesis compares two tokenizer families that both support autoregressive modeling over discrete visual indices, but make different architectural and training choices.
 
-Codebase:
+#### 3.1.1 VQGAN Tokenizer (Taming Transformers)
 
-- `taming-transformers/`
+The first tokenizer is the ImageNet VQGAN first-stage model introduced in Taming Transformers (Esser et al., 2021). The configuration used in this work corresponds to the commonly used `f = 16`, `K = 16,384` setting.
 
-Main tokenizer configuration:
+Core configuration used in experiments:
 
-- Model family: VQGAN
-- Dataset/checkpoint: ImageNet `f=16`, `16384` codes
-- Image size: `256 x 256`
-- Token grid: expected `16 x 16`
-- Codebook size: `16384`
-- Active code subset: TODO: summarize after final code usage analysis
+- input image resolution: `256 x 256`
+- downsampling factor: `f = 16`
+- token-grid resolution: `16 x 16`
+- nominal codebook size: `K = 16,384`
+- codebook embedding dimension: `256`
+- first-stage objective family: reconstruction + perceptual + adversarial terms
 
-Key scripts:
+The Taming Transformers model card reports reconstruction-level distribution metrics for this first-stage setting and provides a standard baseline for visual tokenization at `256 x 256` resolution.
 
-- `taming-transformers/scripts/reconstruct_imagenet_single.py`
-- `taming-transformers/scripts/vqgan_code_usage_export.py`
-- `taming-transformers/scripts/vqgan_precompute_codebook_relations.py`
-- `taming-transformers/scripts/vqgan_robustness_experiment_dataset_export.py`
+#### 3.1.2 LlamaGen Tokenizer
 
-#### 3.1.2 LlamaGen
+The second tokenizer is from LlamaGen (Sun et al., 2024), which revisits large-scale autoregressive image generation with a Llama-style next-token objective and reports both `VQ-16` and `VQ-8` tokenizers.
 
-Codebase:
+Core configuration used in experiments:
 
-- `LlamaGen/`
+- default comparison tokenizer: `VQ-16`
+- alternative tokenizer for comparison context: `VQ-8`
+- input image resolution: `256 x 256`
+- token-grid resolution for `VQ-16`: `16 x 16`
+- nominal codebook size: `K = 16,384`
+- codebook embedding dimension: `8`
+- codebook L2 normalization: enabled
 
-Main tokenizer configuration:
+In published LlamaGen results, `VQ-16` and `VQ-8` report strong reconstruction metrics, and codebook utilization is substantially higher than classical sparse-codebook behavior often observed in older VQ settings.
 
-- Model family: LlamaGen VQ tokenizer
-- Default robustness script model: `VQ-16`
-- Alternative tokenizer considered in reconstruction notes: `VQ-8`
-- Image size: `256 x 256`
-- Token grid for `VQ-16`: expected `16 x 16`
-- Codebook size: `16384`
-- Codebook embedding dimension: `8`
-- Active code subset: TODO: summarize after final code usage analysis
+#### 3.1.3 Comparability and Caveats
 
-Key scripts:
+The two tokenizers are directly comparable along one axis: both can represent `256 x 256` images as `16 x 16` discrete token grids with the same nominal vocabulary size. This allows controlled analysis of codebook usage, robustness, and locality without conflating sequence length.
 
-- `LlamaGen/scripts/reconstruct_imagenet.py`
-- `LlamaGen/scripts/llamagen_code_usage_export.py`
-- `LlamaGen/scripts/llamagen_precompute_codebook_relations.py`
-- `LlamaGen/scripts/llamagen_robustness_experiment_dataset_export.py`
+However, the comparison is not architecture-neutral. Differences in codebook dimension, normalization, and training recipe can produce different internal geometries even when external metrics are similar. These differences are treated as informative rather than confounding: they are precisely what allows the experiments to separate properties common to discrete image tokenizers from properties specific to a particular design.
+
+> **Figure placeholder 3.1a: Experimental Model Comparison Table.**
+> Add a compact table with rows = tokenizers (`VQGAN f16`, `LlamaGen VQ-16`, optional `LlamaGen VQ-8`) and columns = input resolution, token grid size, codebook size, embedding dimension, normalization, and reported reconstruction metrics.
 
 ### 3.2 Datasets
 
 #### 3.2.1 ImageNet Validation
 
-Primary in-distribution evaluation dataset.
+The primary in-distribution evaluation set is ImageNet-1K validation (Deng et al., 2009; Russakovsky et al., 2015). This split provides 50,000 labeled images over 1,000 classes and is the standard benchmark domain for both tokenizers studied here.
 
-Expected layout:
+Preprocessing protocol:
 
-```text
-/datasets/imagenet/val/<class_id>/<image_file>
-```
+- convert image to RGB
+- resize and center-crop to `256 x 256`
+- apply tokenizer-specific normalization
 
-Preprocessing:
-
-- resize/crop to `256 x 256`
-- convert to RGB
-- normalize to model-specific input range
+For reproducibility, all models are evaluated with deterministic preprocessing and no data augmentation at test time.
 
 #### 3.2.2 ImageNet-V2
 
-TODO: describe source, subset/version, and directory layout.
-
-Purpose:
-
-- evaluate dataset shift while staying close to ImageNet semantics
-- compare codebook usage and reconstruction behavior under mild distribution shift
+ImageNet-V2 (Recht et al., 2019) replicates the original ImageNet data-collection process and provides new test images for the same semantic label space. It is used here as a near-domain shift benchmark to measure whether codebook usage and reconstruction behavior remain stable under resampled natural-image statistics. The exact ImageNet-V2 variant used in each run (for example, matched-frequency style subsets) is reported with the corresponding results tables.
 
 #### 3.2.3 ImageNet-Sketch
 
-TODO: describe source and preprocessing.
-
-Purpose:
-
-- evaluate stronger distribution shift
-- probe whether tokenizers trained for natural images remain stable on sketch-like inputs
+ImageNet-Sketch (Wang et al., 2019) emphasizes shape cues over natural texture statistics, making it a stronger shift benchmark than ImageNet-V2. It probes failure modes that arise when natural-image texture priors are weakened and stress-tests codebook assignments under stylistic and structural abstraction. Together, the two OOD sets form a severity ladder from mild resampling to pronounced distributional departure.
 
 #### 3.2.4 Other Candidate Datasets
 
-TODO: list any additional datasets that were tried or should be excluded.
+Additional OOD datasets may be included for ablations, but the core cross-dataset analysis is anchored on the three datasets above so that distribution-shift conclusions remain interpretable.
+
+> **Figure placeholder 3.2a: Dataset Shift Severity Ladder.**
+> Add a three-column visual panel with example thumbnails from ImageNet validation, ImageNet-V2, and ImageNet-Sketch. Caption should explain the intended shift progression: in-distribution -> mild natural-image shift -> strong sketch-like shift.
 
 ### 3.3 Metrics
 
-#### 3.3.1 Reconstruction Metrics
+No single scalar captures reconstruction fidelity, perceptual quality, distribution matching, and discrete-representation behavior simultaneously, so the metric stack is intentionally redundant. The sections below define each metric, note what it misses, and explain how it is interpreted in combination with the others.
 
-MSE and PSNR measure pixel-level reconstruction error. PSNR expresses the same error on a logarithmic decibel scale. Higher PSNR indicates lower pixel error.
+> **Figure placeholder 3.3a: Metric Taxonomy for Tokenizer Evaluation.**
+> Add a matrix with rows = metrics and columns = evaluation questions (`pixel fidelity`, `perceptual fidelity`, `distribution match`, `diversity/coverage`, `codebook efficiency`, `locality/stability`). Mark which metric informs which question.
 
-SSIM measures structural similarity between two images. It is more perceptual than raw pixel error but still operates as a full-reference image similarity metric.
+#### 3.3.1 Pixel-Domain Reconstruction Metrics (MSE, PSNR)
 
-LPIPS uses deep network features to estimate perceptual similarity. Lower LPIPS means the compared images are perceptually closer according to the feature metric.
+Mean squared error (MSE) and peak signal-to-noise ratio (PSNR) are full-reference pixel metrics. For image pairs `(x, x_hat)` with `N` scalar pixels:
 
-FID compares feature distributions of generated and real images using Inception features. In this project, reconstruction FID compares reconstructed images against the corresponding dataset reference distribution. sFID is a spatial variant of FID used by the evaluator stack. Inception Score measures a combination of image recognizability and sample diversity using a pretrained classifier.
+```text
+MSE(x, x_hat) = (1/N) * sum_i (x_i - x_hat_i)^2
+PSNR(x, x_hat) = 10 * log10(MAX^2 / MSE)
+```
 
-Use:
+For normalized images in `[0, 1]`, `MAX = 1`. Lower MSE and higher PSNR indicate better pixel agreement. Both metrics are sensitive to small spatial misalignment and high-frequency texture shifts, which makes them useful for establishing reconstruction baselines and measuring controlled perturbation deltas, but insufficient on their own as a proxy for perceptual realism.
 
-- reconstruction baseline
-- global robustness
-- decoder-locality clean-vs-edited comparison
-- cross-dataset reconstruction comparison
+#### 3.3.2 Structural Similarity (SSIM)
 
-#### 3.3.2 Codebook Usage Metrics
+SSIM (Wang et al., 2004) compares local luminance, contrast, and structure instead of only pointwise pixel error. For local windows:
 
-Definitions:
+```text
+SSIM(x, y) = l(x, y) * c(x, y) * s(x, y)
+```
 
-- active code: code ID observed at least once
-- dead code: code ID never observed
-- entropy: uncertainty of the empirical token distribution
-- perplexity: effective number of codes used, computed from entropy
-- top-k mass: fraction of all token assignments covered by the k most frequent codes
-- positional entropy: entropy of token distribution at each spatial token-grid location
+where `l`, `c`, and `s` are luminance, contrast, and structure comparisons. Reported values are typically averaged across windows. SSIM is closer to perceptual structure than pixel-error metrics, though it remains a full-reference metric rather than a learned perceptual model.
 
-Use:
+#### 3.3.3 Learned Perceptual Similarity (LPIPS)
 
-- compare nominal and effective vocabulary size
-- diagnose codebook collapse or concentration
-- compare in-distribution and OOD usage
+LPIPS (Zhang et al., 2018) compares deep feature activations between two images across multiple network layers:
 
-#### 3.3.3 Locality Metrics
+```text
+LPIPS(x, y) = sum_l w_l * || phi_l(x) - phi_l(y) ||_2^2
+```
 
-Encoder locality:
+where `phi_l` are normalized deep features and `w_l` are learned layer weights. Lower LPIPS indicates higher perceptual similarity. It aligns more closely with human perceptual judgments than shallow pixel metrics, though it remains dependent on the specific backbone and calibration choices.
 
-- inside token change
-- outside token change
-- leakage ratio
-- distance-to-patch token flip probability
-- distance-to-patch embedding-distance response
+#### 3.3.4 Distribution Metrics (FID, sFID, Inception Score)
 
-Decoder locality:
+FID (Heusel et al., 2017) compares two Gaussian approximations in Inception feature space, with means `mu_r`, `mu_g` and covariances `Sigma_r`, `Sigma_g`:
 
-- inside image change
-- outside image change
-- leakage ratio
-- full-image and patch-level PSNR/SSIM/LPIPS
+```text
+FID = ||mu_r - mu_g||_2^2
+      + Tr(Sigma_r + Sigma_g - 2 * (Sigma_r * Sigma_g)^(1/2))
+```
+
+Lower FID indicates closer real-vs-generated (or real-vs-reconstructed) feature distributions.
+
+sFID is a spatial variant used in the OpenAI evaluator stack (Dhariwal and Nichol, 2021; guided-diffusion evaluator). It is reported as an additional distribution-level signal and should be interpreted alongside FID rather than as a replacement.
+
+Inception Score (Salimans et al., 2016) evaluates generated samples by combining label confidence and marginal diversity:
+
+```text
+IS = exp( E_x [ KL( p(y|x) || p(y) ) ] )
+```
+
+Higher IS favors samples that are individually classifiable (`low entropy p(y|x)`) while collectively diverse (`high entropy p(y)`). FID and sFID measure distribution matching in feature space; IS measures a combination of sample quality and diversity but is not a direct real-vs-model distance.
+
+#### 3.3.5 Precision and Recall for Generative Coverage
+
+Precision/recall for generative models (Kynkäänniemi et al., 2019) estimates fidelity and coverage separately in feature space:
+
+- precision: fraction of generated samples that lie in the support region of real samples
+- recall: fraction of real samples covered by the generated-sample support
+
+This separation is important when two models have similar FID but different mode coverage.
+
+> **Figure placeholder 3.3b: Precision-Recall Trade-off in Feature Space.**
+> Add a 2D schematic with real manifold and generated manifold overlays, showing high-precision/low-recall and low-precision/high-recall failure modes.
+
+#### 3.3.6 Codebook Usage Metrics
+
+Let `K` be codebook size and `p_k` be empirical token frequency for code `k`. A purely literal definition of activity as `p_k > 0` is often too brittle for finite datasets, because a code that appears once or twice may be operationally negligible while still counting as active. For this reason, codebook usage should be reported at two levels:
+
+- raw activity: whether a code appears at least once
+- effective activity: whether a code exceeds a minimum support threshold or belongs to the cumulative mass covering almost all assignments
+
+In this thesis, the default descriptive quantities are defined from the raw empirical distribution, but active-subset analyses should also report an effective-support criterion when the distinction materially affects conclusions.
+
+```text
+raw_active_count = number of k such that p_k > 0
+effective_active_count = number of k such that count(k) >= tau
+active_fraction = active_count / K
+entropy H = - sum_k p_k * log(p_k)
+perplexity = exp(H)
+top-k mass = sum_{j in top-k codes} p_j
+```
+
+Here `tau` denotes a minimum frequency threshold chosen to suppress one-off or extremely rare codes when needed for robustness analyses. An equivalent alternative is to define the effective subset by cumulative mass, for example the smallest set of codes whose frequencies account for `99.9%` of all assignments.
+
+Positional entropy is computed per token-grid location `(u, v)` using the local token distribution at that position across images.
+
+Active fraction and perplexity together quantify effective vocabulary size. Top-k mass quantifies how concentrated assignments are, with high concentration indicating near-collapse onto a small subset of codes. Positional entropy reveals whether individual grid positions have specialized to particular codebook regions. Raw and effective activity should be compared whenever rare-code behavior is consequential for downstream interventions such as token replacement.
+
+#### 3.3.7 Locality and Robustness Metrics
+
+For clean tokens `t` and perturbed tokens `t'`, define token flip indicators `1[t_i != t'_i]`.
+
+```text
+flip_rate(region) = mean_i in region 1[t_i != t'_i]
+leakage_ratio = flip_rate(outside_region) / flip_rate(inside_region)
+```
+
+Encoder-locality metrics use token-space regions induced by image-space perturbation masks. Decoder-locality metrics use image-space change inside/outside edited token patches, together with patch/full-image PSNR, SSIM, and LPIPS.
+
+For global perturbation experiments, robustness is reported as metric degradation curves vs perturbation strength (for example, sigma levels for Gaussian noise).
+
+> **Figure placeholder 3.3c: Locality Leakage Curve.**
+> Add a plot of response magnitude vs distance from perturbation boundary, with separate curves for each tokenizer and confidence bands across images.
+
+#### 3.3.8 Reporting Protocol
+
+To avoid over-interpreting single scalars, each metric is reported with distribution-aware summaries:
+
+- mean and standard deviation over samples
+- when relevant, bootstrap confidence intervals
+- paired comparisons for clean vs perturbed variants on the same images
+
+All major claims in later chapters are based on metric bundles (pixel + perceptual + distribution + codebook/locality), not on a single number.
 
 ## 4. RQ1: Reconstruction Baseline and Codebook Usage
 
@@ -914,12 +995,20 @@ TODO.
 ## References
 
 - Aaron van den Oord, Oriol Vinyals, Koray Kavukcuoglu. "Neural Discrete Representation Learning." NeurIPS 2017. https://arxiv.org/abs/1711.00937
+- Jia Deng, Wei Dong, Richard Socher, Li-Jia Li, Kai Li, and Li Fei-Fei. "ImageNet: A Large-Scale Hierarchical Image Database." CVPR 2009. https://www.image-net.org/static_files/papers/imagenet_cvpr09.pdf
+- Olga Russakovsky et al. "ImageNet Large Scale Visual Recognition Challenge." IJCV 2015. https://arxiv.org/abs/1409.0575
 - Patrick Esser, Robin Rombach, Björn Ommer. "Taming Transformers for High-Resolution Image Synthesis." CVPR 2021. https://arxiv.org/abs/2012.09841
 - Taming Transformers codebase. https://github.com/CompVis/taming-transformers
 - Aditya Ramesh et al. "Zero-Shot Text-to-Image Generation." 2021. https://arxiv.org/abs/2102.12092
 - Peize Sun et al. "Autoregressive Model Beats Diffusion: Llama for Scalable Image Generation." 2024. https://arxiv.org/abs/2406.06525
 - LlamaGen codebase. https://github.com/FoundationVision/LlamaGen
+- Benjamin Recht, Rebecca Roelofs, Ludwig Schmidt, and Vaishaal Shankar. "Do ImageNet Classifiers Generalize to ImageNet?" ICML 2019. https://arxiv.org/abs/1902.10811
+- Haohan Wang, Songwei Ge, Zachary C. Lipton, and Eric P. Xing. "Learning Robust Global Representations by Penalizing Local Predictive Power." NeurIPS 2019. https://arxiv.org/abs/1905.13549
 - Richard Zhang et al. "The Unreasonable Effectiveness of Deep Features as a Perceptual Metric." CVPR 2018. https://arxiv.org/abs/1801.03924
 - Martin Heusel et al. "GANs Trained by a Two Time-Scale Update Rule Converge to a Local Nash Equilibrium." NeurIPS 2017. https://arxiv.org/abs/1706.08500
+- Tim Salimans et al. "Improved Techniques for Training GANs." NeurIPS 2016. https://arxiv.org/abs/1606.03498
+- Tuomas Kynkäänniemi et al. "Improved Precision and Recall Metric for Assessing Generative Models." NeurIPS 2019. https://arxiv.org/abs/1904.06991
+- Prafulla Dhariwal and Alexander Nichol. "Diffusion Models Beat GANs on Image Synthesis." NeurIPS 2021. https://arxiv.org/abs/2105.05233
 - Zhou Wang, Alan C. Bovik, Hamid R. Sheikh, Eero P. Simoncelli. "Image Quality Assessment: From Error Visibility to Structural Similarity." IEEE Transactions on Image Processing, 2004. https://live.ece.utexas.edu/publications/2004/zwang_ssim_ieeeip2004.pdf
 - OpenAI guided-diffusion evaluator repository. https://github.com/openai/guided-diffusion
+- Leandro J. V. Miranda. "Understanding CLIP with VQGAN." 2021. https://ljvmiranda921.github.io/notebook/2021/08/08/clip-vqgan/
