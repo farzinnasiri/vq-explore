@@ -1,0 +1,37 @@
+model,dataset,selection,code_id,l1_spatial_distance
+LlamaGen,imagenet_v2,stable,6205,0.5163104611923509
+LlamaGen,imagenet_v2,median,14614,0.8318481300658862
+LlamaGen,imagenet_v2,strong shift,10366,1.0786013986013985
+VQGAN,imagenet_v2,stable,11591,0.22270474931553572
+VQGAN,imagenet_v2,median,10042,0.27456517207831016
+VQGAN,imagenet_v2,strong shift,5243,0.36476895782285557
+LlamaGen,imagenet_sketch,stable,2633,0.6105188084048059
+LlamaGen,imagenet_sketch,median,9001,0.7530630581073401
+LlamaGen,imagenet_sketch,strong shift,6031,0.9514645561157189
+VQGAN,imagenet_sketch,stable,8202,0.24465299625285303
+VQGAN,imagenet_sketch,median,7806,0.3463904794891287
+VQGAN,imagenet_sketch,strong shift,11738,0.4997700960870482
+LlamaGen,objectnet,stable,3111,0.6639578675581053
+LlamaGen,objectnet,median,3556,0.7517519379844961
+LlamaGen,objectnet,strong shift,16328,0.8908521288216158
+VQGAN,objectnet,stable,15703,0.20707464931074218
+VQGAN,objectnet,median,15798,0.30487118646881983
+VQGAN,objectnet,strong shift,5171,0.4567895977252385
+LlamaGen,organamnist,stable,12060,0.5977355167172029
+LlamaGen,organamnist,median,8822,0.7381169897606236
+LlamaGen,organamnist,strong shift,5971,0.9417985463649782
+VQGAN,organamnist,stable,5495,0.1934157442914456
+VQGAN,organamnist,median,11110,0.30052517828509206
+VQGAN,organamnist,strong shift,12857,0.5043066259634829
+LlamaGen,bloodmnist,stable,5412,0.7727618634982529
+LlamaGen,bloodmnist,median,4128,0.9668667988021007
+LlamaGen,bloodmnist,strong shift,2615,1.1701905138786817
+VQGAN,bloodmnist,stable,7771,0.39636156104801235
+VQGAN,bloodmnist,median,217,0.6955951596785571
+VQGAN,bloodmnist,strong shift,7365,1.0616938346310194
+LlamaGen,rvlcdip,stable,4738,0.6201771806833762
+LlamaGen,rvlcdip,median,15477,0.7798062891871523
+LlamaGen,rvlcdip,strong shift,9372,0.9823358270989193
+VQGAN,rvlcdip,stable,12857,0.283212087413193
+VQGAN,rvlcdip,median,15366,0.4643233689172255
+VQGAN,rvlcdip,strong shift,12165,0.7368019513890507
