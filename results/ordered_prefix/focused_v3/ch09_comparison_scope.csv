@@ -1,0 +1,5 @@
+model_label,dataset_key,images,classes,rows
+FlexTok,imagenet,10000,200,90000
+FlexTok,imagenet_r,10000,200,90000
+One-D-Piece,imagenet,10000,200,90000
+One-D-Piece,imagenet_r,10000,200,90000

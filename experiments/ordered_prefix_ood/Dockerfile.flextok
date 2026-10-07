@@ -1,0 +1,14 @@
+FROM nvidia/cuda:11.8.0-cudnn8-runtime-ubuntu22.04
+
+ENV DEBIAN_FRONTEND=noninteractive PIP_NO_CACHE_DIR=1 PYTHONUNBUFFERED=1
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential ca-certificates git libglib2.0-0 libgl1 python3.10 python3-dev python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+RUN python3 -m pip install --upgrade pip setuptools wheel \
+    && python3 -m pip install torch==2.5.1+cu118 torchvision==0.20.1+cu118 \
+        --index-url https://download.pytorch.org/whl/cu118
+
+WORKDIR /app
+COPY . /app
+RUN python3 -m pip install -e . lpips scikit-image

@@ -1,0 +1,32 @@
+{
+  "nas_root": "/megaverse/storage/nasiri",
+  "handover_directory": "vq-tokenizer-properties",
+  "links": {
+    "datasets/imagenet_val": "/home/nasiri/datasets/shared/imagenet/val",
+    "datasets/imagenet_v2": "/megaverse/datasets/projects/vqtok/imagenet-v2/imagenetv2-matched-frequency-format-val-wnid",
+    "datasets/imagenet_sketch": "/megaverse/datasets/projects/vqtok/imagenet-sketch",
+    "datasets/imagenet_r": "/megaverse/datasets/projects/vqtok/imagenet-r",
+    "datasets/objectnet": "/megaverse/datasets/projects/vqtok/objectnet-1.0",
+    "datasets/organamnist": "/megaverse/datasets/projects/vqtok/organamnist_224_all",
+    "datasets/bloodmnist": "/megaverse/datasets/projects/vqtok/bloodmnist_224_all",
+    "datasets/rvlcdip": "/megaverse/datasets/projects/vqtok/rvlcdip-test",
+    "checkpoints/llamagen": "llamagen/checkpoints",
+    "checkpoints/vqgan": "vq-gan/checkpoints",
+    "checkpoints/ordered_prefix_huggingface_cache": "ordered-prefix-ood-full/cache-nasiri/huggingface",
+    "results/code_usage": "jupyter/vq-explore/code_usage_results",
+    "results/reconstruction": "jupyter/vq-explore/end_to_end_results",
+    "results/global_noise_vqgan": "jupyter/1765562245_robustness_dataset_vqgan",
+    "results/global_noise_llamagen": "jupyter/1765559700_robustness_dataset_llamagen",
+    "results/encoder_locality": "jupyter/data/h1_encoder_locality",
+    "results/decoder_locality": "jupyter/data/h2_decoder_locality",
+    "results/analysis_cache": "jupyter/analysis_cache",
+    "results/notebook_outputs": "jupyter/vq-explore/notebooks",
+    "results/ordered_prefix_full": "ordered-prefix-ood-full",
+    "results/ordered_prefix_extended": "ordered-prefix-ood-extended",
+    "results/ordered_prefix_confirmatory": "ordered-prefix-ood-confirmatory",
+    "results/ordered_prefix_granular": "ordered-prefix-ood-granular",
+    "results/ordered_prefix_pilot": "ordered-prefix-ood",
+    "results/reference_npz": "reference_npz",
+    "results/fid_references": "fid_refs"
+  }
+}

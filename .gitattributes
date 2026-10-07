@@ -1,0 +1,2 @@
+# Preserve archived CSV bytes: manifest/result provenance uses SHA-256.
+*.csv -text whitespace=cr-at-eol

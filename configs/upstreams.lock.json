@@ -1,0 +1,22 @@
+{
+  "guided_diffusion": {
+    "url": "https://github.com/openai/guided-diffusion.git",
+    "commit": "22e0df8183507e13a7813f8d38d51b072ca1e67c"
+  },
+  "llamagen": {
+    "url": "https://github.com/farzinnasiri/LlamaGen.git",
+    "commit": "e223eb4d4555d7d0cc13d6d07eeea7128c4ce2c5"
+  },
+  "vqgan": {
+    "url": "https://github.com/farzinnasiri/taming-transformers.git",
+    "commit": "3093ecf867aba4f0c78d9cd6ae5b29b5a4ffbde4"
+  },
+  "flextok": {
+    "url": "https://github.com/apple/ml-flextok.git",
+    "commit": "28e0ffc24e590bdab0099d4a317b601cdc674a5b"
+  },
+  "one_d_piece": {
+    "url": "https://github.com/turingmotors/One-D-Piece.git",
+    "commit": "473665d1ec5d4f96e07f1c379166f668ee17b961"
+  }
+}

@@ -1,0 +1,6 @@
+# Extracted from the recorded fork's eval/Dockerfile; Linux Python 3.8.
+tensorflow-cpu==2.9.0
+numpy==1.23.5
+scipy==1.10.1
+requests
+tqdm

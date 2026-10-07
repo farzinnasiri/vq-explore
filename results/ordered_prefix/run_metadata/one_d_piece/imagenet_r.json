@@ -1,0 +1,21 @@
+{
+  "model": "turing-motors/One-D-Piece-S-256",
+  "dataset": "imagenet_r",
+  "n_images": 30000,
+  "prefixes": [
+    8,
+    16,
+    32,
+    64,
+    96,
+    128,
+    160,
+    208,
+    256
+  ],
+  "preprocessing": "RGB, resize shorter edge to 256, center crop 256",
+  "lpips_backbone": "alex",
+  "seed": 20260812,
+  "dataset_root": "/dataset",
+  "manifest_sha256": "2040af8441826d2926129cde2ea2d71e14aac9d61d2b1435fefbb454e4d4871f"
+}
