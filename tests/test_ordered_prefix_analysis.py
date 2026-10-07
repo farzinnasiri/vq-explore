@@ -83,6 +83,34 @@ class AnalysisTests(unittest.TestCase):
             self.assertEqual(result["primary_prefix"], 32)
             self.assertEqual(set(result["models"]), {"alpha", "beta"})
 
+    def test_rq5_spatial_plot_is_independent_of_three_dataset_check(self):
+        try:
+            import pandas as pd
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+        except ImportError:
+            self.skipTest("Install pandas/matplotlib to exercise the plotting regression")
+        notebook = json.loads((ROOT / "notebooks/ch08_rq5_distribution_shift.ipynb").read_text())
+        source = next("".join(c["source"]) for c in notebook["cells"]
+                      if c["cell_type"] == "code" and "spatial_specs = [" in "".join(c["source"]))
+        datasets = [f"domain{i}" for i in range(6)]
+        frame = pd.DataFrame([dict(model=model, dataset=dataset, median_l1_distance=.2,
+                                   median_effective_support_ratio=1.1,
+                                   fraction_more_spatially_concentrated=.4)
+                              for model in ("LlamaGen", "VQGAN") for dataset in datasets])
+        namespace = dict(np=np, plt=plt, x=np.arange(3), width=.36, ood_datasets=datasets,
+                         spatial_summary=frame, MODEL_COLORS={"LlamaGen": "blue", "VQGAN": "red"},
+                         DATASET_LABELS={key: key for key in datasets}, save_figure=lambda *_: None)
+        try:
+            exec(compile(source, "rq5-spatial-plot", "exec"), namespace)
+            self.assertEqual(len(namespace["x"]), 3)
+            for ax in namespace["axes"]:
+                self.assertEqual(len(ax.get_xticks()), 6)
+                self.assertEqual(len(ax.patches), 12)
+        finally:
+            plt.close("all")
+
 
 if __name__ == "__main__":
     unittest.main()

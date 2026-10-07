@@ -33,5 +33,6 @@ The hashes identify executed originals stored under `original_notebooks/2026-10-
 - Added external source revision lock, safe NAS navigation index, notebook workspace/execution helpers and evaluator/export launchers.
 - Thesis presentation helpers accept input/output roots without changing calculations.
 - Source whitespace was tidied mechanically. Archived CSV line endings are explicitly preserved by Git because manifest/result provenance depends on their byte hashes.
+- A clean RQ5 execution exposed shared plotting state: the three-domain sample-matched check overwrote `x`, then a six-domain plot reused it. The packaged ch08 spatial plot now uses its own `spatial_x`/`spatial_width`. Statistical values/formulas are unchanged. The frozen original notebook remains available for provenance.
 
 No run is presented as bitwise reproducible solely because source commits are pinned. Historical transitive environments were not completely frozen, and stochastic interventions/GPU arithmetic remain relevant. See `VERIFICATION.md` for tests actually completed, rather than inferring validation from a README command.

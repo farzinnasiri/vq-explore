@@ -34,3 +34,9 @@ Assembled 7 October 2026. Read-only source inspection and report assembly; no qu
 ## Validation
 
 The HTML uses local PNGs, inline CSS, system fonts and only an inline print button script. Remote links are citations, not rendering dependencies. Structural, numeric consistency and browser checks are recorded under `validation/`; screenshots are inspection artifacts and do not need to ship with the report. The browser CLI skill discovery command was unavailable in the installed version, so its documented `--help` commands were used as the fallback.
+
+## Packaging addendum
+
+The package was subsequently assembled and published separately to the personal and AIRLab repositories. The four image sources in the canonical HTML were embedded mechanically as PNG data URLs for single-file sharing; their decoded bytes are identical to the original assets. Original-resolution files remain beside it in `assets/`.
+
+The packaging check executed the current ordered-prefix notebook against read-only archived inputs and reproduced all eleven `focused_v3` quantitative CSVs byte-for-byte. RQ1 also executed completely. A separate RQ5 clean execution exposed a plotting-state problem; the packaged spatial plot now defines its own six-domain x positions, with a regression test. No new model inference was performed. Current outcomes and limits are recorded in the package `VERIFICATION.md`, not inferred from this report's earlier assembly checks.
